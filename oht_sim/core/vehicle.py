@@ -31,6 +31,8 @@ class Vehicle:
         self.state: VehicleState = VehicleState.IDLE
         self.job: Job | None = None
         self.path: list[Coord] = []
+        self.goal: Coord | None = None  # 현재 이동 목표 (L2 동기식 mover)
+        self.moving: bool = False  # 틱 동기식 이동 대상 여부
 
     @property
     def is_idle(self) -> bool:
