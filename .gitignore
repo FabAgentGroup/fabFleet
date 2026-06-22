@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+.env
+.venv/
+venv/
+.DS_Store
+.idea/
+.vscode/
+# 에이전트 작업 산출물
+CLAUDE.md
+.claude/
+.mcp.json
+# 시뮬레이션 산출물 (애니메이션·로그)
+*.gif
+*.mp4
+outputs/
+runs/
+# LLM 호출 로그
+agents/logs/
