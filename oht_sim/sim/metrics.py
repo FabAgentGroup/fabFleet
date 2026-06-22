@@ -26,6 +26,7 @@ class MetricsCollector:
         self.queue_series: list[tuple[float, int]] = []
         self.avoidance_waits: int = 0  # 충돌 회피 대기 횟수 (L2)
         self.deadlocks: int = 0  # 교착 감지 횟수 (L2)
+        self.interventions: int = 0  # 관제 개입 횟수 (L3)
         self._cur: dict[int, tuple[str, float]] = {}  # vehicle_id -> (state, since)
         self._duration: float = config.sim_duration
         bus.subscribe(self._on_event)
@@ -50,6 +51,8 @@ class MetricsCollector:
             self.avoidance_waits += 1
         elif e.type == EventType.DEADLOCK_DETECTED:
             self.deadlocks += 1
+        elif e.type == EventType.ACTION:
+            self.interventions += 1
 
     def finalize(self, duration: float) -> None:
         """실행 종료 시 열린 가동 구간을 마감"""
@@ -82,6 +85,7 @@ class MetricsCollector:
             "max_queue_len": float(max(queue_lens)) if queue_lens else 0.0,
             "avoidance_waits": self.avoidance_waits,
             "deadlocks": self.deadlocks,
+            "interventions": self.interventions,
         }
 
     def events_dataframe(self) -> pd.DataFrame:
@@ -113,6 +117,7 @@ class MetricsCollector:
             "max_queue_len": "최대 큐 길이",
             "avoidance_waits": "충돌 회피 대기수",
             "deadlocks": "교착 감지수",
+            "interventions": "관제 개입수",
         }
         width = max(len(v) for v in labels.values())
         print("\n=== 시뮬레이션 지표 ===")

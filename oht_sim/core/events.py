@@ -20,6 +20,7 @@ class EventType(str, Enum):
     MOVE = "MOVE"  # 셀 단위 이동 (시각화·혼잡도)
     BLOCKED = "BLOCKED"  # 충돌 회피 대기 (L2)
     DEADLOCK_DETECTED = "DEADLOCK_DETECTED"  # 교착 감지 (L2)
+    ACTION = "ACTION"  # 관제 에이전트 개입 (L3)
     STEP = "STEP"  # 주기적 스냅샷 (큐 길이 등)
 
 
