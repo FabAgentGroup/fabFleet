@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 기술 결정 실험 기록
+    url: https://github.com/FabAgentGroup/fabFleet/tree/develop/experiments
+    about: 핵심 의사결정의 정량 비교(D1~Dn)는 experiments/ 에 정리되어 있습니다
