@@ -50,4 +50,22 @@ class ManhattanRouter:
         return path
 
 
-# TODO(Layer 2, §6.1 - AStarRouter: 장애물·일방통행 반영, 맨해튼 휴리스틱)
+class AStarRouter:
+    """장애물 회피 A* 경로탐색 (맨해튼 휴리스틱) - L2 단일 차량 경로
+
+    충돌 회피(시공간 예약)는 algorithms/mapf.py가 담당하고, 본 라우터는 정적
+    장애물·일방통행을 반영한 최단 경로를 제공한다. reservation 인자는 인터페이스
+    호환용으로 받되 무시한다.
+    """
+
+    def find_path(
+        self,
+        grid: Grid,
+        start: Coord,
+        goal: Coord,
+        reservation: "ReservationTable | None" = None,
+        start_time: float = 0.0,
+    ) -> list[Coord]:
+        from oht_sim.algorithms.mapf import plan_route
+
+        return plan_route(grid, start, goal)

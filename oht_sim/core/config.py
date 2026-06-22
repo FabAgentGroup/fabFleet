@@ -23,6 +23,11 @@ class SimConfig:
     load_time: float = 3.0
     unload_time: float = 3.0
 
+    # 충돌·교착 회피 (L2)
+    collision_avoidance: bool = True  # False면 L1 동작(충돌 무시)으로 비교
+    mapf_window: int = 8  # 윈도우 협력 A* 계획 지평(틱)
+    deadlock_threshold: int = 5  # 연속 대기 횟수 초과 시 교착으로 판정
+
     # 실행
     sim_duration: float = 1000.0
     snapshot_interval: float = 10.0  # STEP 이벤트·큐 길이 샘플링 주기

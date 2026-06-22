@@ -24,6 +24,8 @@ class MetricsCollector:
         self.jobs: dict[int, dict[str, float]] = {}
         self.busy: dict[int, float] = {}
         self.queue_series: list[tuple[float, int]] = []
+        self.avoidance_waits: int = 0  # 충돌 회피 대기 횟수 (L2)
+        self.deadlocks: int = 0  # 교착 감지 횟수 (L2)
         self._cur: dict[int, tuple[str, float]] = {}  # vehicle_id -> (state, since)
         self._duration: float = config.sim_duration
         bus.subscribe(self._on_event)
@@ -44,6 +46,10 @@ class MetricsCollector:
             self._cur[v] = (e.payload["to"], t)
         elif e.type == EventType.STEP:
             self.queue_series.append((t, e.payload["queue_len"]))
+        elif e.type == EventType.BLOCKED:
+            self.avoidance_waits += 1
+        elif e.type == EventType.DEADLOCK_DETECTED:
+            self.deadlocks += 1
 
     def finalize(self, duration: float) -> None:
         """실행 종료 시 열린 가동 구간을 마감"""
@@ -74,6 +80,8 @@ class MetricsCollector:
             "utilization": util,
             "avg_queue_len": _mean(queue_lens),
             "max_queue_len": float(max(queue_lens)) if queue_lens else 0.0,
+            "avoidance_waits": self.avoidance_waits,
+            "deadlocks": self.deadlocks,
         }
 
     def events_dataframe(self) -> pd.DataFrame:
@@ -103,6 +111,8 @@ class MetricsCollector:
             "utilization": "OHT 가동률",
             "avg_queue_len": "평균 큐 길이",
             "max_queue_len": "최대 큐 길이",
+            "avoidance_waits": "충돌 회피 대기수",
+            "deadlocks": "교착 감지수",
         }
         width = max(len(v) for v in labels.values())
         print("\n=== 시뮬레이션 지표 ===")
