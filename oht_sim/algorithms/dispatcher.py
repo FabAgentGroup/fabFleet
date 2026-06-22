@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Protocol, TYPE_CHECKING
+from typing import Protocol
 
-if TYPE_CHECKING:
-    from oht_sim.core.job import Job
-    from oht_sim.core.vehicle import Vehicle
+from oht_sim.core.job import Job
+from oht_sim.core.layout import manhattan
+from oht_sim.core.vehicle import Vehicle
 
 
 class Dispatcher(Protocol):
@@ -14,12 +14,31 @@ class Dispatcher(Protocol):
 
     def assign(
         self,
-        pending_jobs: list["Job"],
-        idle_vehicles: list["Vehicle"],
-    ) -> list[tuple["Job", "Vehicle"]]:
+        pending_jobs: list[Job],
+        idle_vehicles: list[Vehicle],
+    ) -> list[tuple[Job, Vehicle]]:
         """대기 Job과 유휴 OHT를 받아 (Job, Vehicle) 할당 쌍 목록 반환"""
         ...
 
 
-# TODO(Layer 1, §5.4 - NearestDispatcher: 맨해튼 거리 최소 OHT 배정)
+class NearestDispatcher:
+    """유휴 OHT 중 출발 Station까지 맨해튼 거리 최소인 OHT 배정 - L1 베이스라인"""
+
+    def assign(
+        self,
+        pending_jobs: list[Job],
+        idle_vehicles: list[Vehicle],
+    ) -> list[tuple[Job, Vehicle]]:
+        assignments: list[tuple[Job, Vehicle]] = []
+        available = list(idle_vehicles)
+        # 생성 순(우선순위·시각) 작업부터 가까운 차량 배정
+        for job in sorted(pending_jobs, key=lambda j: (-j.priority, j.created_time)):
+            if not available:
+                break
+            nearest = min(available, key=lambda v: manhattan(v.pos, job.src.coord))
+            assignments.append((job, nearest))
+            available.remove(nearest)
+        return assignments
+
+
 # TODO(Layer 3, §4.3(2) - set_dispatch_policy로 교체 가능한 정책들: least_busy 등)
