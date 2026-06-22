@@ -52,6 +52,7 @@ class Simulator:
         )
         self.router = router or default_router
         self.dispatcher = dispatcher or NearestDispatcher()
+        self.dispatch_policy_name = "nearest"
         self.job_gen = JobGenerator(
             self.stations, config.job_arrival_rate, self.rng
         )
@@ -60,6 +61,10 @@ class Simulator:
         self.reservation = ReservationTable()
         self._stuck: dict[int, int] = {v.id: 0 for v in self.vehicles}
         self._arrival: dict[int, simpy.Event] = {}
+
+        # Layer 3 관제 (선택) - attach_supervisor로 주입
+        self.supervisor = None
+        self.agent_config = None
 
     # ----- 구성 -----
 
@@ -301,6 +306,88 @@ class Simulator:
                 },
             )
 
+    # ----- Layer 3 제어 액션 API (화이트리스트, §4.3 (2)) -----
+
+    def set_dispatch_policy(self, name: str) -> None:
+        """배차 정책 교체 (nearest | least_busy)"""
+        from oht_sim.algorithms.dispatcher import (
+            LeastBusyDispatcher,
+            NearestDispatcher,
+        )
+
+        policies = {"nearest": NearestDispatcher, "least_busy": LeastBusyDispatcher}
+        if name not in policies:
+            raise ValueError(f"미지원 배차 정책: {name}")
+        if name == self.dispatch_policy_name:
+            return  # 동일 정책이면 무시 (상태 초기화 방지, 멱등)
+        self.dispatcher = policies[name]()
+        self.dispatch_policy_name = name
+        self._publish(EventType.ACTION, payload={"action": "set_dispatch_policy", "name": name})
+        self._try_dispatch()
+
+    def block_segment(self, cells: list[Coord], duration: float) -> None:
+        """특정 구간을 일시 통제(우회 유도) 후 자동 해제"""
+        added = [c for c in cells if c not in self.grid.blocked]
+        self.grid.blocked.update(added)
+        self._publish(
+            EventType.ACTION,
+            location=added[0] if added else None,
+            payload={"action": "block_segment", "cells": [list(c) for c in added], "duration": duration},
+        )
+        self.env.process(self._unblock_after(added, duration))
+
+    def _unblock_after(self, cells: list[Coord], duration: float) -> Generator:
+        yield self.env.timeout(duration)
+        for c in cells:
+            self.grid.blocked.discard(c)
+
+    def reprioritize_job(self, job_id: int, priority: int) -> None:
+        """대기 중인 작업의 우선순위 조정"""
+        for j in self.pending:
+            if j.id == job_id:
+                j.priority = priority
+                self._publish(
+                    EventType.ACTION,
+                    job_id=job_id,
+                    payload={"action": "reprioritize_job", "priority": priority},
+                )
+                self._try_dispatch()
+                return
+        raise ValueError(f"대기 큐에 없는 작업: {job_id}")
+
+    def rebalance_idle_vehicles(self, zone: tuple[int, int]) -> None:
+        """유휴 OHT 일부를 지정 구역 중심으로 재배치"""
+        n = self.agent_config.num_zones if self.agent_config else 2
+        cx = int((zone[0] + 0.5) * self.grid.width / n)
+        cy = int((zone[1] + 0.5) * self.grid.height / n)
+        center = (
+            min(self.grid.width - 1, cx),
+            min(self.grid.height - 1, cy),
+        )
+        moved = 0
+        for v in self.vehicles:
+            if v.is_idle and not v.moving and moved < 2:
+                v.goal = center
+                v.moving = True
+                moved += 1
+        self._publish(
+            EventType.ACTION,
+            location=center,
+            payload={"action": "rebalance_idle_vehicles", "zone": list(zone), "moved": moved},
+        )
+
+    # ----- 관제(supervisor) -----
+
+    def attach_supervisor(self, supervisor, agent_config) -> None:
+        """Layer 3 관제 에이전트 주입"""
+        self.supervisor = supervisor
+        self.agent_config = agent_config
+
+    def _supervise(self) -> Generator:
+        while True:
+            yield self.env.timeout(self.agent_config.supervisor_interval)
+            self.supervisor.step(self)
+
     # ----- 실행 -----
 
     def run(self) -> MetricsCollector:
@@ -309,6 +396,8 @@ class Simulator:
         self.env.process(self._snapshot())
         if self.config.collision_avoidance:
             self.env.process(self._mover())
+        if self.supervisor is not None:
+            self.env.process(self._supervise())
         self.env.run(until=self.config.sim_duration)
         self.metrics.finalize(self.config.sim_duration)
         return self.metrics

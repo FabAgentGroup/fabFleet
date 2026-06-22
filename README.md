@@ -52,7 +52,7 @@
 | 시각화 | Matplotlib (animation, GIF 저장) |
 | 경로계획 | 자체 구현 (A\*, MAPF) |
 | 에이전트 오케스트레이션 | LangGraph |
-| LLM | Claude API (claude-sonnet-4-6) |
+| LLM | OpenAI API (gpt-4o-mini) |
 | 테스트 | pytest |
 
 L1·L2는 GPU·외부 API가 불필요합니다. L3에서만 LLM API 키가 필요하며 환경변수로 주입합니다.
@@ -80,4 +80,4 @@ python -m oht_sim.main      # 시뮬레이션 실행 + 지표 출력
 pytest                      # 단위 테스트
 ```
 
-> Layer 3 실행 시 `ANTHROPIC_API_KEY` 환경변수가 필요합니다.
+> Layer 3 관제(`python -m oht_sim.main --supervise`) 실행 시 `OPENAI_API_KEY` 환경변수가 필요합니다.

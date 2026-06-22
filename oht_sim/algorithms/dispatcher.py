@@ -41,4 +41,32 @@ class NearestDispatcher:
         return assignments
 
 
-# TODO(Layer 3, §4.3(2) - set_dispatch_policy로 교체 가능한 정책들: least_busy 등)
+class LeastBusyDispatcher:
+    """누적 배차가 가장 적은 유휴 OHT부터 배정 - 부하 균형 정책 (L3 개입 대상)
+
+    set_dispatch_policy로 nearest와 교체해 특정 차량 쏠림을 완화한다.
+    """
+
+    def __init__(self) -> None:
+        self._count: dict[int, int] = {}
+
+    def assign(
+        self,
+        pending_jobs: list[Job],
+        idle_vehicles: list[Vehicle],
+    ) -> list[tuple[Job, Vehicle]]:
+        assignments: list[tuple[Job, Vehicle]] = []
+        available = list(idle_vehicles)
+        for job in sorted(pending_jobs, key=lambda j: (-j.priority, j.created_time)):
+            if not available:
+                break
+            # 누적 배차 최소, 동률은 출발지까지 거리로 보조 정렬
+            chosen = min(
+                available,
+                key=lambda v: (self._count.get(v.id, 0), manhattan(v.pos, job.src.coord)),
+            )
+            self._count[chosen.id] = self._count.get(chosen.id, 0) + 1
+            assignments.append((job, chosen))
+            available.remove(chosen)
+        return assignments
+

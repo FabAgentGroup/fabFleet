@@ -36,3 +36,22 @@ class SimConfig:
     # 선택 주입 (미지정 시 시드 기반 생성)
     station_coords: list[tuple[int, int]] | None = None
     blocked_cells: list[tuple[int, int]] = field(default_factory=list)
+
+
+@dataclass
+class AgentConfig:
+    """Layer 3 관제 에이전트 파라미터 (모든 임계치 주입)"""
+
+    # 스냅샷·감시 주기
+    supervisor_interval: float = 30.0  # 스냅샷·관제 그래프 실행 주기
+    recent_window: float = 60.0  # 최근 이벤트 집계 윈도우
+    num_zones: int = 2  # 격자 분할(축당) - num_zones x num_zones 구역
+
+    # 이상 감지 임계치 (규칙 1차 필터)
+    queue_threshold: int = 15  # 대기 큐 길이 이상 임계
+    zone_block_threshold: int = 8  # 구역별 최근 회피 대기 이상 임계
+    zone_deadlock_threshold: int = 1  # 구역별 최근 교착 이상 임계
+
+    # LLM
+    model: str = "gpt-4o-mini"
+    temperature: float = 0.0
