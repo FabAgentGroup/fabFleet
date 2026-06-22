@@ -63,6 +63,14 @@ class MetricsCollector:
 
     # ----- 지표 -----
 
+    def lead_times(self) -> list[float]:
+        """완료 작업의 리드타임 분포 (꼬리 위험·p95 산출용)"""
+        return [
+            j["completed"] - j["created"]
+            for j in self.jobs.values()
+            if "completed" in j and "created" in j
+        ]
+
     def summary(self) -> dict[str, float]:
         completed = [j for j in self.jobs.values() if "completed" in j]
         assigned = [j for j in self.jobs.values() if "assigned" in j]
