@@ -18,6 +18,8 @@ def build_config(args: argparse.Namespace) -> SimConfig:
         cfg.sim_duration = args.duration
     if args.seed is not None:
         cfg.random_seed = args.seed
+    if args.failure:
+        cfg.vehicle_failure = True
     return cfg
 
 
@@ -28,6 +30,9 @@ def main() -> None:
     parser.add_argument("--duration", type=float, default=None, help="시뮬레이션 시간")
     parser.add_argument("--seed", type=int, default=None, help="난수 시드")
     parser.add_argument("--gif", action="store_true", help="애니메이션 GIF 저장")
+    parser.add_argument(
+        "--failure", action="store_true", help="OHT 확률적 고장·수리 활성화 (L1 신뢰성)"
+    )
     parser.add_argument(
         "--supervise",
         action="store_true",

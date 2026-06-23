@@ -82,6 +82,7 @@ pip install -r requirements.txt
 python -m oht_sim.main               # 시뮬레이션 실행 + 지표 출력
 python -m oht_sim.main --gif         # 애니메이션 GIF 저장
 python -m oht_sim.main --supervise   # LLM 관제 활성화 (OPENAI_API_KEY 필요)
+python -m oht_sim.main --failure     # OHT 확률적 고장·수리 활성화 (L1 신뢰성)
 pytest                               # 단위 테스트
 ```
 
@@ -101,3 +102,4 @@ pytest                               # 단위 테스트
 | D4 강화학습 배차 | 선형 정책 + REINFORCE | 학습 후 nearest 대비 대기 약 -10%(고분산) | `python -m oht_sim.experiments.rl_compare` |
 | D6 강화 RL 배차 | 풍부한 상태 6차원 + 비선형 MLP 정책 | 선형 RL과 평균 동률, p95 꼬리만 소폭 개선(병목은 보상 설계) | `python -m oht_sim.experiments.rl_v2_compare` |
 | D7 유의성 검정 | 30시드 쌍체 + 부트스트랩 CI·순열검정 | 배차 차이 모두 유의하지 않음(D4 -10%는 시드 노이즈 내) | `python -m oht_sim.experiments.significance_compare` |
+| D8 차량 고장 영향 | 확률적 고장·수리(MTBF 스윕) | MTBF 150서 처리량 -31%·리드 +38%(단조 저하) | `python -m oht_sim.experiments.failure_compare` |

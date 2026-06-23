@@ -23,6 +23,11 @@ class SimConfig:
     load_time: float = 3.0
     unload_time: float = 3.0
 
+    # 차량 고장·수리 (L1 신뢰성, §8 D8)
+    vehicle_failure: bool = False  # True면 OHT가 확률적으로 고장·수리
+    failure_mtbf: float = 300.0  # 차량당 평균 고장 간격(MTBF), 작을수록 잦은 고장
+    repair_time: float = 40.0  # 평균 수리 소요(지수분포)
+
     # 충돌·교착 회피 (L2)
     collision_avoidance: bool = True  # False면 L1 동작(충돌 무시)으로 비교
     mapf_window: int = 8  # 윈도우 협력 A* 계획 지평(틱)

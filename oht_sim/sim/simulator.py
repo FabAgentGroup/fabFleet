@@ -169,27 +169,32 @@ class Simulator:
                 EventType.JOB_ASSIGNED, job_id=job.id, vehicle_id=vehicle.id
             )
             self._set_state(vehicle, VehicleState.MOVING_TO_PICKUP)
-            self.env.process(self._run_job(vehicle, job))
+            vehicle.proc = self.env.process(self._run_job(vehicle, job))
 
     def _run_job(self, v: Vehicle, job: Job) -> Generator:
-        yield from self._goto(v, job.src.coord)
-        self._set_state(v, VehicleState.LOADING)
-        yield self.env.timeout(self.config.load_time)
-        self._publish(
-            EventType.PICKUP, job_id=job.id, vehicle_id=v.id, location=job.src.coord
-        )
+        try:
+            yield from self._goto(v, job.src.coord)
+            self._set_state(v, VehicleState.LOADING)
+            yield self.env.timeout(self.config.load_time)
+            self._publish(
+                EventType.PICKUP, job_id=job.id, vehicle_id=v.id, location=job.src.coord
+            )
 
-        self._set_state(v, VehicleState.MOVING_TO_DROPOFF)
-        yield from self._goto(v, job.dst.coord)
-        self._set_state(v, VehicleState.UNLOADING)
-        yield self.env.timeout(self.config.unload_time)
-        self._publish(
-            EventType.DROPOFF, job_id=job.id, vehicle_id=v.id, location=job.dst.coord
-        )
+            self._set_state(v, VehicleState.MOVING_TO_DROPOFF)
+            yield from self._goto(v, job.dst.coord)
+            self._set_state(v, VehicleState.UNLOADING)
+            yield self.env.timeout(self.config.unload_time)
+            self._publish(
+                EventType.DROPOFF, job_id=job.id, vehicle_id=v.id, location=job.dst.coord
+            )
 
-        v.job = None
-        self._set_state(v, VehicleState.IDLE)
-        self._try_dispatch()
+            v.job = None
+            v.proc = None
+            self._set_state(v, VehicleState.IDLE)
+            self._try_dispatch()
+        except simpy.Interrupt:
+            # 고장으로 중단 - 정리(작업 회수·이동 상태)는 _fail_vehicle가 수행
+            return
 
     def _goto(self, v: Vehicle, goal: Coord) -> Generator:
         """목표 도착까지 대기 (이동은 mover가 충돌 없이 수행)"""
@@ -469,6 +474,50 @@ class Simulator:
             yield self.env.timeout(self.agent_config.supervisor_interval)
             self.supervisor.step(self)
 
+    # ----- 차량 고장·수리 (L1 신뢰성, §8 D8) -----
+
+    def _failure_proc(self) -> Generator:
+        """가동 차량 중 하나를 확률적으로 고장 처리 (지수 분포 고장 간격)
+
+        전체 고장률 = 차량수 / MTBF. 고장 간격을 지수분포로 뽑아 가동 차량을 무작위
+        선택해 정지시킨다. 가동 차량이 없으면 다음 간격까지 대기한다.
+        """
+        cfg = self.config
+        while True:
+            rate = len(self.vehicles) / cfg.failure_mtbf
+            yield self.env.timeout(self.rng.expovariate(rate))
+            operational = [v for v in self.vehicles if not v.is_failed]
+            if not operational:
+                continue
+            self._fail_vehicle(self.rng.choice(operational))
+
+    def _fail_vehicle(self, v: Vehicle) -> None:
+        """차량을 고장 정지시키고 진행 작업을 회수한 뒤 수리를 예약"""
+        if v.job is not None:
+            # 미완 작업을 대기 큐로 회수해 다른 차량이 재수행
+            self.pending.append(v.job)
+            v.job = None
+        # 이동·예약 상태 해제 (정지 장애물로 남아 다른 차량은 우회)
+        v.moving = False
+        v.goal = None
+        v.path = []
+        # 도착 이벤트는 제거만(트리거하지 않음) - 인터럽트로 _goto 대기를 깬다
+        self._arrival.pop(v.id, None)
+        self._stuck[v.id] = 0
+        proc, v.proc = v.proc, None
+        self._set_state(v, VehicleState.FAILED)
+        self._publish(EventType.VEHICLE_FAILED, vehicle_id=v.id, location=v.pos)
+        if proc is not None and proc.is_alive:
+            proc.interrupt()
+        self.env.process(self._repair_proc(v))
+
+    def _repair_proc(self, v: Vehicle) -> Generator:
+        """수리 시간 경과 후 차량을 가동(IDLE)으로 복귀시키고 배차 재개"""
+        yield self.env.timeout(self.rng.expovariate(1.0 / self.config.repair_time))
+        self._set_state(v, VehicleState.IDLE)
+        self._publish(EventType.VEHICLE_REPAIRED, vehicle_id=v.id, location=v.pos)
+        self._try_dispatch()
+
     # ----- 실행 -----
 
     def run(self) -> MetricsCollector:
@@ -481,6 +530,8 @@ class Simulator:
             self.env.process(self._supervise())
         if self.forecaster is not None:
             self.env.process(self._predictive_dispatch_proc())
+        if self.config.vehicle_failure:
+            self.env.process(self._failure_proc())
         self.env.run(until=self.config.sim_duration)
         self.metrics.finalize(self.config.sim_duration)
         return self.metrics
