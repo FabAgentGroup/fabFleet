@@ -178,15 +178,16 @@ def test_reflection_text_injected_into_prompts():
     assert any("최근 개입 효과 이력" in c.user for c in llm.calls)
 
 
-def test_reflection_off_keeps_prompts_clean():
+def test_reflection_off_measures_but_skips_injection():
+    # off는 효과를 여전히 측정(A/B 동일 기준)하되 프롬프트에 주입하지 않음
     agent_cfg = AgentConfig(
         supervisor_interval=20.0, queue_threshold=1, model="mock", reflection=False
     )
     sim_cfg = SimConfig(num_vehicles=2, job_arrival_rate=0.5, sim_duration=160)
     llm, sup, sim = _run_supervised(agent_cfg, sim_cfg)
 
-    assert sup.ledger.outcomes == []
-    assert all("최근 개입 효과 이력" not in c.user for c in llm.calls)
+    assert sup.ledger.outcomes  # 측정은 항상 수행
+    assert all("최근 개입 효과 이력" not in c.user for c in llm.calls)  # 주입은 없음
 
 
 def test_timeline_effect_backfilled():

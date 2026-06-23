@@ -95,12 +95,12 @@ class Supervisor:
         """
         snapshot = self.builder.build(sim)
 
-        reflection = ""
-        if self.config.reflection:
-            evaluated = self.ledger.evaluate_pending(snapshot)
-            if evaluated is not None and 0 <= evaluated.timeline_idx < len(self.timeline):
-                self.timeline[evaluated.timeline_idx]["effect"] = evaluated.to_dict()
-            reflection = self.ledger.reflection_text()
+        # 효과 평가는 항상 수행(닫힌 루프 측정), reflection 주입만 토글로 제어해
+        # on/off A/B에서 개입 효율을 동일 기준으로 비교한다.
+        evaluated = self.ledger.evaluate_pending(snapshot)
+        if evaluated is not None and 0 <= evaluated.timeline_idx < len(self.timeline):
+            self.timeline[evaluated.timeline_idx]["effect"] = evaluated.to_dict()
+        reflection = self.ledger.reflection_text() if self.config.reflection else ""
 
         result = self.graph.invoke({"snapshot": snapshot, "reflection": reflection})
         entry = {
@@ -114,14 +114,13 @@ class Supervisor:
         }
         self.timeline.append(entry)
 
-        if self.config.reflection:
-            response = result.get("response") or {}
-            if response.get("applied"):
-                self.ledger.record(
-                    snapshot.time,
-                    response.get("decision") or {},
-                    result.get("diagnosis") or {},
-                    snapshot,
-                    len(self.timeline) - 1,
-                )
+        response = result.get("response") or {}
+        if response.get("applied"):
+            self.ledger.record(
+                snapshot.time,
+                response.get("decision") or {},
+                result.get("diagnosis") or {},
+                snapshot,
+                len(self.timeline) - 1,
+            )
         return entry
