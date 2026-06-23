@@ -89,7 +89,11 @@ class Responder:
         self.executor = executor
 
     def respond(
-        self, snapshot: "Snapshot", anomalies: list["Anomaly"], diagnosis: dict
+        self,
+        snapshot: "Snapshot",
+        anomalies: list["Anomaly"],
+        diagnosis: dict,
+        reflection: str = "",
     ) -> dict:
         user = (
             "운영 스냅샷:\n"
@@ -97,6 +101,8 @@ class Responder:
             + "\n\n진단:\n"
             + json.dumps(diagnosis, ensure_ascii=False)
         )
+        if reflection:
+            user += "\n\n" + reflection
         decision = self.llm.complete_json("responder", _SYSTEM, user)
         record = self.executor.execute(decision)
         return {"decision": decision, "applied": record.applied, "error": record.error}

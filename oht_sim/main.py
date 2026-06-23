@@ -54,7 +54,18 @@ def main() -> None:
         print(f"\n관제 그래프 실행 {len(sim.supervisor.timeline)}회, 개입 트리거 {len(triggered)}회")
         for e in triggered[:5]:
             act = e["response"]["decision"].get("action") if e.get("response") else None
-            print(f"  t={e['time']:.0f} 이상={[a['type'] for a in e['anomalies']]} -> 액션={act}")
+            eff = e.get("effect")
+            tail = f" -> 효과 {eff['label']}(점수 {eff['effect_score']:+.1f})" if eff else ""
+            print(f"  t={e['time']:.0f} 이상={[a['type'] for a in e['anomalies']]} -> 액션={act}{tail}")
+
+        summary = sim.supervisor.ledger.efficacy_summary()
+        if summary["total"]:
+            c = summary["counts"]
+            print(
+                f"\n개입 효과: 평가 {summary['total']}건 "
+                f"(개선 {c['개선']}·변화없음 {c['변화없음']}·악화 {c['악화']}), "
+                f"평균 점수 {summary['avg_score']:+.2f}"
+            )
 
     if args.gif:
         from oht_sim.viz.visualize import animate

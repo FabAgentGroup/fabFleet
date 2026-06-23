@@ -3,6 +3,7 @@
 from oht_sim.agents.graph import Supervisor
 from oht_sim.agents.llm import ScriptedLLMClient
 from oht_sim.agents.monitor import Monitor
+from oht_sim.agents.reflection import InterventionLedger
 from oht_sim.agents.responder import ActionExecutor
 from oht_sim.agents.state import Snapshot, SnapshotBuilder, ZoneStat
 from oht_sim.core.config import AgentConfig, SimConfig
@@ -124,6 +125,81 @@ def test_graph_skips_llm_when_no_anomaly():
 
     assert llm.calls == []  # 이상 트리거 없으면 LLM 호출 없음
     assert sim.dispatch_policy_name == "nearest"  # 개입 없음
+
+
+# ----- 개입 효과 평가 + reflection 닫힌 루프 -----
+
+def _decision(action="set_dispatch_policy"):
+    return {"action": action, "params": {"name": "least_busy"}, "rationale": "x"}
+
+
+def test_ledger_scores_improvement():
+    # 큐 20 -> 12 로 감소하면 개선
+    ledger = InterventionLedger(AgentConfig())
+    ledger.record(100.0, _decision(), {"target_zone": None}, _snapshot(queue_len=20), 0)
+    o = ledger.evaluate_pending(_snapshot(queue_len=12))
+    assert o is not None and o.label == "개선" and o.effect_score > 0
+
+
+def test_ledger_scores_worsening():
+    # 큐 12 -> 20 으로 증가하면 악화
+    ledger = InterventionLedger(AgentConfig())
+    ledger.record(100.0, _decision(), {"target_zone": None}, _snapshot(queue_len=12), 0)
+    o = ledger.evaluate_pending(_snapshot(queue_len=20))
+    assert o is not None and o.label == "악화" and o.effect_score < 0
+
+
+def test_ledger_ignores_none_action():
+    # none(개입 없음)은 평가 대상이 아님
+    ledger = InterventionLedger(AgentConfig())
+    ledger.record(100.0, {"action": "none"}, {}, _snapshot(queue_len=20), 0)
+    assert ledger.evaluate_pending(_snapshot(queue_len=10)) is None
+
+
+def test_ledger_uses_target_zone_congestion():
+    # 대상 구역 혼잡 감소도 점수에 반영
+    ledger = InterventionLedger(AgentConfig())
+    ledger.record(100.0, _decision("block_segment"), {"target_zone": [0, 0]}, _snapshot(queue_len=5, blocked=9), 0)
+    o = ledger.evaluate_pending(_snapshot(queue_len=5, blocked=1))
+    assert o.before["zone_congestion"] == 9 and o.after["zone_congestion"] == 1
+    assert o.label == "개선"
+
+
+def test_reflection_text_injected_into_prompts():
+    # 한 번 개입 후 다음 스텝의 진단·대응 프롬프트에 효과 이력이 들어감
+    agent_cfg = AgentConfig(
+        supervisor_interval=20.0, queue_threshold=1, model="mock", reflection=True
+    )
+    sim_cfg = SimConfig(num_vehicles=2, job_arrival_rate=0.5, sim_duration=160)
+    llm, sup, sim = _run_supervised(agent_cfg, sim_cfg)
+
+    # 평가된 개입이 생기고, 이후 호출 프롬프트에 reflection 머리말이 포함됨
+    assert sup.ledger.outcomes
+    assert any("최근 개입 효과 이력" in c.user for c in llm.calls)
+
+
+def test_reflection_off_keeps_prompts_clean():
+    agent_cfg = AgentConfig(
+        supervisor_interval=20.0, queue_threshold=1, model="mock", reflection=False
+    )
+    sim_cfg = SimConfig(num_vehicles=2, job_arrival_rate=0.5, sim_duration=160)
+    llm, sup, sim = _run_supervised(agent_cfg, sim_cfg)
+
+    assert sup.ledger.outcomes == []
+    assert all("최근 개입 효과 이력" not in c.user for c in llm.calls)
+
+
+def test_timeline_effect_backfilled():
+    # 개입 항목에 다음 스텝에서 효과가 소급 기록됨
+    agent_cfg = AgentConfig(
+        supervisor_interval=20.0, queue_threshold=1, model="mock", reflection=True
+    )
+    sim_cfg = SimConfig(num_vehicles=2, job_arrival_rate=0.5, sim_duration=160)
+    llm, sup, sim = _run_supervised(agent_cfg, sim_cfg)
+
+    assert any(e.get("effect") for e in sup.timeline)
+    summary = sup.ledger.efficacy_summary()
+    assert summary["total"] >= 1
 
 
 # ----- 스냅샷 빌더 -----

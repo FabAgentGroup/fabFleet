@@ -33,7 +33,12 @@ class Diagnoser:
     def _query(self, anomalies: list["Anomaly"]) -> str:
         return " ".join(f"{a.type} {a.evidence}" for a in anomalies)
 
-    def diagnose(self, snapshot: "Snapshot", anomalies: list["Anomaly"]) -> dict:
+    def diagnose(
+        self,
+        snapshot: "Snapshot",
+        anomalies: list["Anomaly"],
+        reflection: str = "",
+    ) -> dict:
         user = (
             "운영 스냅샷:\n"
             + snapshot.to_prompt()
@@ -46,6 +51,8 @@ class Diagnoser:
                 ensure_ascii=False,
             )
         )
+        if reflection:
+            user += "\n\n" + reflection
         if self.retriever is not None:
             hits = self.retriever.search(self._query(anomalies), k=self.top_k)
             if hits:

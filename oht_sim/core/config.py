@@ -67,3 +67,11 @@ class AgentConfig:
     # LLM
     model: str = "gpt-4o-mini"
     temperature: float = 0.0
+
+    # 개입 효과 평가·reflection 닫힌 루프 (L3)
+    reflection: bool = True  # 직전 개입 효과를 다음 진단·대응에 반영
+    reflection_window: int = 3  # 프롬프트에 주입할 최근 개입 이력 수
+    effect_eps: float = 0.5  # 개선/악화 판정 점수 임계 (절댓값 이하면 변화없음)
+    effect_w_queue: float = 1.0  # 효과 점수 - 대기 큐 감소 가중
+    effect_w_lead: float = 0.1  # 효과 점수 - 리드타임 감소 가중
+    effect_w_congestion: float = 1.0  # 효과 점수 - 대상 구역 혼잡 감소 가중
