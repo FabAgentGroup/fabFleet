@@ -28,6 +28,18 @@ class SimConfig:
     mapf_window: int = 8  # 윈도우 협력 A* 계획 지평(틱)
     deadlock_threshold: int = 5  # 연속 대기 횟수 초과 시 교착으로 판정
 
+    # 시간 변동 핫스팟 수요 (§8 예측 배차용 시나리오)
+    demand_hotspot: bool = False  # True면 출발 구역이 시간에 따라 쏠림
+    demand_zones: int = 2  # 수요 구역 분할(축당)
+    hotspot_period: float = 150.0  # 핫스팟 구역 전환 주기
+    hotspot_weight: float = 0.6  # 출발지를 핫스팟 구역에서 뽑을 확률
+
+    # 예측 기반 사전 배차 (§8, D2)
+    predictive_dispatch: bool = False  # 예측 선제 재배치 활성화
+    forecast_interval: float = 30.0  # 예측 갱신·선제 배치 주기
+    forecast_alpha: float = 0.4  # 구역 수요 EMA 평활 계수
+    predict_reposition_k: int = 2  # 주기당 선제 이동 유휴 OHT 수
+
     # 실행
     sim_duration: float = 1000.0
     snapshot_interval: float = 10.0  # STEP 이벤트·큐 길이 샘플링 주기

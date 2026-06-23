@@ -43,6 +43,20 @@ def manhattan(a: Coord, b: Coord) -> int:
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 
+def zone_of(cell: Coord, width: int, height: int, n: int) -> tuple[int, int]:
+    """셀이 속한 n x n 구역 좌표"""
+    zx = min(n - 1, cell[0] * n // width)
+    zy = min(n - 1, cell[1] * n // height)
+    return (zx, zy)
+
+
+def zone_center(zone: tuple[int, int], width: int, height: int, n: int) -> Coord:
+    """구역 중심 셀"""
+    cx = min(width - 1, int((zone[0] + 0.5) * width / n))
+    cy = min(height - 1, int((zone[1] + 0.5) * height / n))
+    return (cx, cy)
+
+
 def build_stations(
     num_stations: int,
     grid: Grid,
