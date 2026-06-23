@@ -13,7 +13,14 @@ from oht_sim.algorithms.router import AStarRouter, ManhattanRouter, Router
 from oht_sim.core.config import SimConfig
 from oht_sim.core.events import Event, EventBus, EventType
 from oht_sim.core.job import Job, JobGenerator
-from oht_sim.core.layout import Coord, Grid, build_stations, manhattan
+from oht_sim.core.layout import (
+    Coord,
+    Grid,
+    build_stations,
+    manhattan,
+    zone_center,
+    zone_of,
+)
 from oht_sim.core.vehicle import Vehicle, VehicleState
 from oht_sim.sim.metrics import MetricsCollector
 
@@ -54,7 +61,15 @@ class Simulator:
         self.dispatcher = dispatcher or NearestDispatcher()
         self.dispatch_policy_name = "nearest"
         self.job_gen = JobGenerator(
-            self.stations, config.job_arrival_rate, self.rng
+            self.stations,
+            config.job_arrival_rate,
+            self.rng,
+            grid_width=config.grid_width,
+            grid_height=config.grid_height,
+            hotspot=config.demand_hotspot,
+            zones=config.demand_zones,
+            hotspot_period=config.hotspot_period,
+            hotspot_weight=config.hotspot_weight,
         )
         self.metrics = MetricsCollector(self.bus, config)
 
@@ -65,6 +80,13 @@ class Simulator:
         # Layer 3 관제 (선택) - attach_supervisor로 주입
         self.supervisor = None
         self.agent_config = None
+
+        # 예측 기반 사전 배차 (선택, §8)
+        self.forecaster = None
+        if config.predictive_dispatch:
+            from oht_sim.algorithms.forecast import DemandForecaster
+
+            self.forecaster = DemandForecaster(config.demand_zones, config.forecast_alpha)
 
     # ----- 구성 -----
 
@@ -117,6 +139,15 @@ class Simulator:
             yield self.env.timeout(self.job_gen.next_interarrival())
             job = self.job_gen.create(self.env.now)
             self.pending.append(job)
+            if self.forecaster is not None:
+                self.forecaster.observe(
+                    zone_of(
+                        job.src.coord,
+                        self.grid.width,
+                        self.grid.height,
+                        self.config.demand_zones,
+                    )
+                )
             self._publish(
                 EventType.JOB_CREATED,
                 job_id=job.id,
@@ -293,6 +324,56 @@ class Simulator:
                 u.moving = True  # mover가 다음 틱부터 비켜세움
                 break
 
+    def _hot_zone_target(self, hot: tuple[int, int]) -> Coord:
+        """핫존 내 Station 중심(실제 픽업 위치)으로 선제 배치 타깃 산출"""
+        n = self.config.demand_zones
+        in_hot = [
+            s.coord
+            for s in self.stations
+            if zone_of(s.coord, self.grid.width, self.grid.height, n) == hot
+        ]
+        if not in_hot:
+            return zone_center(hot, self.grid.width, self.grid.height, n)
+        cx = round(sum(c[0] for c in in_hot) / len(in_hot))
+        cy = round(sum(c[1] for c in in_hot) / len(in_hot))
+        return (min(self.grid.width - 1, cx), min(self.grid.height - 1, cy))
+
+    def _predictive_dispatch_proc(self) -> Generator:
+        """예측 수요 최고 구역의 Station 중심으로 유휴 OHT 일부를 선제 재배치 (§8)
+
+        슬랙(유휴 수 > 대기 큐)이 있을 때만 재배치해 dispatch 굶주림을 피한다.
+        """
+        n = self.config.demand_zones
+        while True:
+            yield self.env.timeout(self.config.forecast_interval)
+            self.forecaster.end_window()
+            hot = self.forecaster.hottest()
+            if hot is None:
+                continue
+            target = self._hot_zone_target(hot)
+            slack = sum(1 for v in self.vehicles if v.is_idle and not v.moving) - len(self.pending)
+            budget = min(self.config.predict_reposition_k, max(0, slack))
+            if budget <= 0:
+                continue
+            idle_far = [
+                v
+                for v in self.vehicles
+                if v.is_idle
+                and not v.moving
+                and zone_of(v.pos, self.grid.width, self.grid.height, n) != hot
+            ]
+            idle_far.sort(key=lambda v: -manhattan(v.pos, target))
+            moved = idle_far[:budget]
+            for v in moved:
+                v.goal = target
+                v.moving = True
+            if moved:
+                self._publish(
+                    EventType.ACTION,
+                    location=target,
+                    payload={"action": "predictive_reposition", "zone": list(hot), "moved": len(moved)},
+                )
+
     def _snapshot(self) -> Generator:
         while True:
             yield self.env.timeout(self.config.snapshot_interval)
@@ -398,6 +479,8 @@ class Simulator:
             self.env.process(self._mover())
         if self.supervisor is not None:
             self.env.process(self._supervise())
+        if self.forecaster is not None:
+            self.env.process(self._predictive_dispatch_proc())
         self.env.run(until=self.config.sim_duration)
         self.metrics.finalize(self.config.sim_duration)
         return self.metrics
