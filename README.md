@@ -65,7 +65,8 @@ oht_sim/
 │                  #   forecast(수요 예측), rl_dispatcher(강화학습)
 ├── sim/           # simulator(SimPy 조립), metrics(이벤트 소싱 지표)
 ├── agents/        # llm, state, monitor, diagnoser, responder, graph,
-│                  #   rag(하이브리드 검색), knowledge/(지식 코퍼스)
+│                  #   rag(하이브리드 검색), knowledge/(지식 코퍼스),
+│                  #   rule_supervisor(규칙 기반 결정적 관제)
 ├── viz/           # Matplotlib 애니메이션 + 관제 오버레이
 ├── experiments/   # 비교 실험 러너 (policy/predictive/retrieval/rl)
 └── main.py        # 진입점
@@ -103,3 +104,4 @@ pytest                               # 단위 테스트
 | D6 강화 RL 배차 | 풍부한 상태 6차원 + 비선형 MLP 정책 | 선형 RL과 평균 동률, p95 꼬리만 소폭 개선(병목은 보상 설계) | `python -m oht_sim.experiments.rl_v2_compare` |
 | D7 유의성 검정 | 30시드 쌍체 + 부트스트랩 CI·순열검정 | 배차 차이 모두 유의하지 않음(D4 -10%는 시드 노이즈 내) | `python -m oht_sim.experiments.significance_compare` |
 | D8 차량 고장 영향 | 확률적 고장·수리(MTBF 스윕) | MTBF 150서 처리량 -31%·리드 +38%(단조 저하) | `python -m oht_sim.experiments.failure_compare` |
+| D9 고장 인지 관제 | 고장 감지→완화(부하 스윕) | 경부하 리드 -3.1%, 고부하 효과 0(슬랙 의존) | `python -m oht_sim.experiments.failure_supervision_compare` |

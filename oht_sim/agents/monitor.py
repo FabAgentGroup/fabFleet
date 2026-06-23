@@ -44,6 +44,16 @@ class Monitor:
                 )
             )
 
+        if snapshot.failed_vehicles > 0 and snapshot.availability < cfg.availability_threshold:
+            anomalies.append(
+                Anomaly(
+                    type="fleet_degraded",
+                    severity="high" if snapshot.availability < 0.5 else "medium",
+                    location=None,
+                    evidence=f"가용 {snapshot.availability:.0%}(고장 {snapshot.failed_vehicles}대)",
+                )
+            )
+
         for z in snapshot.zones:
             if z.deadlocks_recent >= cfg.zone_deadlock_threshold:
                 anomalies.append(
