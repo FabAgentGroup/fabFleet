@@ -22,6 +22,8 @@ class EventType(str, Enum):
     DEADLOCK_DETECTED = "DEADLOCK_DETECTED"  # 교착 감지 (L2)
     ACTION = "ACTION"  # 관제 에이전트 개입 (L3)
     STEP = "STEP"  # 주기적 스냅샷 (큐 길이 등)
+    VEHICLE_FAILED = "VEHICLE_FAILED"  # OHT 고장 정지 (L1 신뢰성)
+    VEHICLE_REPAIRED = "VEHICLE_REPAIRED"  # OHT 수리 복귀 (L1 신뢰성)
 
 
 @dataclass
