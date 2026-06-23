@@ -16,10 +16,11 @@ class VehicleState(str, Enum):
     LOADING = "LOADING"
     MOVING_TO_DROPOFF = "MOVING_TO_DROPOFF"
     UNLOADING = "UNLOADING"
+    FAILED = "FAILED"  # 고장 정지 (수리 전까지 배차·이동 불가, 정지 장애물)
 
 
-# non-idle 집합 (가동률 산출용)
-BUSY_STATES = frozenset(VehicleState) - {VehicleState.IDLE}
+# non-idle·non-failed 집합 (가동률 산출용 - 생산적 가동 상태만)
+BUSY_STATES = frozenset(VehicleState) - {VehicleState.IDLE, VehicleState.FAILED}
 
 
 class Vehicle:
@@ -33,10 +34,15 @@ class Vehicle:
         self.path: list[Coord] = []
         self.goal: Coord | None = None  # 현재 이동 목표 (L2 동기식 mover)
         self.moving: bool = False  # 틱 동기식 이동 대상 여부
+        self.proc = None  # 진행 중인 작업 프로세스 (고장 시 인터럽트용)
 
     @property
     def is_idle(self) -> bool:
         return self.state == VehicleState.IDLE
+
+    @property
+    def is_failed(self) -> bool:
+        return self.state == VehicleState.FAILED
 
     def __repr__(self) -> str:
         return f"Vehicle(id={self.id}, pos={self.pos}, state={self.state.value})"
