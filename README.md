@@ -99,4 +99,5 @@ pytest                               # 단위 테스트
 | D2 예측 배차 | 핫스팟 수요에 OHT 선제 배치 | 중부하(λ=0.20) 평균 대기 약 -69% | `python -m oht_sim.experiments.predictive_compare` |
 | D3 RAG 검색 | BM25 / TF-IDF / 하이브리드 hit-rate | 어휘 코퍼스에서 동률(0.87), 시맨틱은 후속 | `python -m oht_sim.experiments.retrieval_compare` |
 | D4 강화학습 배차 | 선형 정책 + REINFORCE | 학습 후 nearest 대비 대기 약 -10%(고분산) | `python -m oht_sim.experiments.rl_compare` |
+| D7 유의성 검정 | 30시드 쌍체 + 부트스트랩 CI·순열검정 | 배차 차이 모두 유의하지 않음(D4 -10%는 시드 노이즈 내) | `python -m oht_sim.experiments.significance_compare` |
 | D6 강화 RL 배차 | 풍부한 상태 6차원 + 비선형 MLP 정책 | 선형 RL과 평균 동률, p95 꼬리만 소폭 개선(병목은 보상 설계) | `python -m oht_sim.experiments.rl_v2_compare` |

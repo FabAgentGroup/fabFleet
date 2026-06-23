@@ -54,3 +54,15 @@ def test_reflection_compare_reproducible():
     a = run_config(_scripted_factory(), reflection=True, seed=3)
     b = run_config(_scripted_factory(), reflection=True, seed=3)
     assert a == b  # 시드·스크립트 고정 -> 결정적
+
+
+# ----- D7 유의성 비교 하니스 -----
+
+def test_significance_collect_pairs_by_seed():
+    from oht_sim.algorithms.dispatcher import LeastBusyDispatcher, NearestDispatcher
+    from oht_sim.experiments.significance_compare import collect
+
+    data = collect({"nearest": NearestDispatcher, "least_busy": LeastBusyDispatcher}, seeds=[1, 2, 3])
+    assert set(data) == {"nearest", "least_busy"}
+    assert all(len(v) == 3 for v in data.values())  # 시드별 쌍체
+    assert all(w >= 0 for v in data.values() for w in v)
