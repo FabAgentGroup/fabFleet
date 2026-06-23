@@ -13,6 +13,7 @@ from oht_sim.agents.state import SnapshotBuilder
 
 if TYPE_CHECKING:
     from oht_sim.agents.llm import LLMClient
+    from oht_sim.agents.rag import Retriever
     from oht_sim.core.config import AgentConfig
     from oht_sim.sim.simulator import Simulator
 
@@ -59,10 +60,16 @@ def build_graph(monitor: Monitor, diagnoser: Diagnoser, responder: Responder):
 class Supervisor:
     """관제 에이전트 묶음 - 스냅샷 빌더·그래프·액션 실행·추론 타임라인"""
 
-    def __init__(self, llm: "LLMClient", agent_config: "AgentConfig", sim: "Simulator"):
+    def __init__(
+        self,
+        llm: "LLMClient",
+        agent_config: "AgentConfig",
+        sim: "Simulator",
+        retriever: "Retriever | None" = None,
+    ):
         self.builder = SnapshotBuilder(agent_config)
         self.monitor = Monitor(agent_config)
-        self.diagnoser = Diagnoser(llm)
+        self.diagnoser = Diagnoser(llm, retriever=retriever)
         self.executor = ActionExecutor(sim)
         self.responder = Responder(llm, self.executor)
         self.graph = build_graph(self.monitor, self.diagnoser, self.responder)
