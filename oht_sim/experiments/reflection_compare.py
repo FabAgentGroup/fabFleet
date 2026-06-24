@@ -105,6 +105,7 @@ def _charts(comp: dict, out_dir: str) -> None:
 
     fig, ax = plt.subplots(figsize=(6, 4))
     metrics = ["interventions", "improved", "worsened"]
+    xs = range(len(metrics))  # 지표 수가 달라지므로 x축 재설정
     for j, cfg in enumerate(comp):
         ax.bar(
             [x + j * width for x in xs],
@@ -157,11 +158,18 @@ def _results_md(comp: dict, seeds: list[int], model: str) -> str:
         "",
         "## 결정 (Decision)",
         "",
-        f"reflection on의 평균 효과 점수 {on['avg_score']:+.2f}, off {off['avg_score']:+.2f}. "
-        f"평균 대기 {on['avg_wait']:.1f} vs {off['avg_wait']:.1f}({pct(on['avg_wait'], off['avg_wait'])}). "
-        "효과 이력을 프롬프트에 주입하면 악화 개입을 줄이고 개선 개입 비중을 높이는지 검증합니다.",
+        f"reflection on의 평균 효과 점수 {on['avg_score']:+.2f}, off {off['avg_score']:+.2f}로, "
+        f"효과 이력을 프롬프트에 주입하면 개입의 자기측정 효율이 개선됩니다(악화 개입 "
+        f"{off['worsened']:.1f}->{on['worsened']:.1f}, 개선 {off['improved']:.1f}->{on['improved']:.1f}). "
+        f"다만 운영 지표로는 이어지지 않아 평균 대기는 {on['avg_wait']:.1f} vs {off['avg_wait']:.1f}"
+        f"({pct(on['avg_wait'], off['avg_wait'])})로 오히려 소폭 나빠집니다.",
         "",
-        "해석: <실행 후 채움 - 시드 분산·통계적 견고성·LLM 판단 의존도 포함>",
+        "해석: 두 설정 모두 평균 효과 점수가 음수라는 점이 핵심입니다. LLM 관제의 개입이 "
+        "평균적으로는 지표를 악화시키는 경향이 있고, reflection은 그 손해를 줄일 뿐 순이득으로 "
+        "뒤집지는 못합니다. 또한 효과 점수는 개입 전후 델타라 주변 부하 변동과 개입 효과가 "
+        "섞여 인과를 단정하기 어렵습니다. 8시드 고분산이라 통계적 유의성은 D7(stats.py)의 쌍체 "
+        "검정으로 확인해야 하며, 현 결과는 reflection이 자기측정 효율은 높이되 운영 개선과 인과 "
+        "귀속은 추가 작업이 필요함을 시사합니다.",
         "",
         "![operational](charts/operational.png)",
         "![efficacy](charts/efficacy.png)",
@@ -186,9 +194,14 @@ def main() -> None:
     }
 
     os.makedirs(out_dir, exist_ok=True)
-    _charts(comp, out_dir)
+    # 비싼 LLM 집계를 먼저 보존(차트 실패에도 수치 유실 방지)
+    import json
+
+    with open(os.path.join(out_dir, "comp.json"), "w", encoding="utf-8") as f:
+        json.dump(comp, f, ensure_ascii=False, indent=2)
     with open(os.path.join(out_dir, "results.md"), "w", encoding="utf-8") as f:
         f.write(_results_md(comp, seeds, agent_cfg.model))
+    _charts(comp, out_dir)
     print(f"실험 완료: {out_dir}/results.md + charts/")
     for cfg in comp:
         c = comp[cfg]
