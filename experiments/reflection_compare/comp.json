@@ -1,0 +1,22 @@
+{
+  "reflection_on": {
+    "avg_wait": 61.06370876431348,
+    "avg_lead": 86.48168299234297,
+    "p95_lead": 147.35683673817513,
+    "avg_queue": 18.733974358974358,
+    "interventions": 9.875,
+    "improved": 3.5,
+    "worsened": 6.0,
+    "avg_score": -3.0975
+  },
+  "reflection_off": {
+    "avg_wait": 55.368437598042405,
+    "avg_lead": 80.73599824255325,
+    "p95_lead": 140.04465591932757,
+    "avg_queue": 20.03525641025641,
+    "interventions": 10.375,
+    "improved": 3.25,
+    "worsened": 6.75,
+    "avg_score": -8.1125
+  }
+}
