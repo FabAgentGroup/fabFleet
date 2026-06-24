@@ -38,6 +38,8 @@ class Snapshot:
     recent_deadlocks: list[Coord]
     recent_lead_time: float
     dispatch_policy: str
+    failed_vehicles: int = 0  # 현재 고장 정지 차량 수 (L1 신뢰성)
+    availability: float = 1.0  # 가동 가능 차량 비율 (가동/전체)
 
     def to_struct(self) -> dict:
         return {
@@ -46,6 +48,8 @@ class Snapshot:
             "queue_trend": self.queue_trend,
             "vehicle_states": self.vehicle_states,
             "utilization_now": round(self.utilization_now, 3),
+            "failed_vehicles": self.failed_vehicles,
+            "availability": round(self.availability, 3),
             "recent_lead_time": round(self.recent_lead_time, 1),
             "dispatch_policy": self.dispatch_policy,
             "zones": [
@@ -70,9 +74,14 @@ class Snapshot:
             )
             or "특이 구역 없음"
         )
+        avail_txt = (
+            f", 가용 {self.availability:.0%}(고장 {self.failed_vehicles})"
+            if self.failed_vehicles
+            else ""
+        )
         summary = (
             f"시각 {self.time:.0f}, 대기 큐 {self.queue_len}(추세 {self.queue_trend:+d}), "
-            f"가동률 {self.utilization_now:.0%}, 최근 리드타임 {self.recent_lead_time:.0f}, "
+            f"가동률 {self.utilization_now:.0%}{avail_txt}, 최근 리드타임 {self.recent_lead_time:.0f}, "
             f"배차정책 {self.dispatch_policy}. 혼잡 구역: {hot_txt}."
         )
         return summary + "\n구조화 데이터:\n" + json.dumps(
@@ -132,8 +141,13 @@ class SnapshotBuilder:
         recent_lead = sum(leads) / len(leads) if leads else 0.0
 
         states = Counter(v.state.value for v in sim.vehicles)
+        total = len(sim.vehicles)
         idle = states.get("IDLE", 0)
-        util = (len(sim.vehicles) - idle) / len(sim.vehicles) if sim.vehicles else 0.0
+        failed = states.get("FAILED", 0)
+        operational = total - failed
+        # 가동률은 가동 가능 차량 기준(고장 제외), 가용성은 전체 대비 가동 가능 비율
+        util = (operational - idle) / operational if operational else 0.0
+        availability = operational / total if total else 1.0
 
         queue_len = len(sim.pending)
         trend = 0 if self._prev_queue is None else queue_len - self._prev_queue
@@ -149,4 +163,6 @@ class SnapshotBuilder:
             recent_deadlocks=deadlocks,
             recent_lead_time=recent_lead,
             dispatch_policy=sim.dispatch_policy_name,
+            failed_vehicles=failed,
+            availability=availability,
         )

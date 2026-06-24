@@ -66,3 +66,15 @@ def test_significance_collect_pairs_by_seed():
     assert set(data) == {"nearest", "least_busy"}
     assert all(len(v) == 3 for v in data.values())  # 시드별 쌍체
     assert all(w >= 0 for v in data.values() for w in v)
+
+
+# ----- D9 고장 인지 관제 하니스 -----
+
+def test_failure_supervision_arms_run():
+    from oht_sim.experiments.failure_supervision_compare import run_arm
+
+    base = run_arm(0.16, supervised=False, seed=3)
+    sup = run_arm(0.16, supervised=True, seed=3)
+    assert base["mitigations"] == 0.0  # 무관제는 개입 없음
+    assert sup["mitigations"] >= 1.0  # 관제는 고장 저하에 개입
+    assert base["throughput"] >= 0 and sup["avg_lead"] >= 0

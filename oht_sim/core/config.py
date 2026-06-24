@@ -68,6 +68,7 @@ class AgentConfig:
     queue_threshold: int = 15  # 대기 큐 길이 이상 임계
     zone_block_threshold: int = 8  # 구역별 최근 회피 대기 이상 임계
     zone_deadlock_threshold: int = 1  # 구역별 최근 교착 이상 임계
+    availability_threshold: float = 0.75  # 가용 차량 비율 하한 (미만이면 고장 저하 이상)
 
     # LLM
     model: str = "gpt-4o-mini"
