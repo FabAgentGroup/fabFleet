@@ -85,6 +85,9 @@ class Supervisor:
         self.graph = build_graph(self.monitor, self.diagnoser, self.responder)
         self.llm = llm
         self.ledger = InterventionLedger(agent_config)
+        # 인과 가드(선택) - 학습된 인과 통계로 해로운 LLM 액션을 거부
+        if getattr(agent_config, "action_guard", False):
+            self.executor.guard = self.ledger.should_act
         self.timeline: list[dict] = []
 
     def step(self, sim: "Simulator") -> dict:

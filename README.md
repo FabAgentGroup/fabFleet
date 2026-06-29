@@ -65,8 +65,8 @@ oht_sim/
 │                  #   forecast(수요 예측), rl_dispatcher(강화학습), congestion(혼잡장)
 ├── sim/           # simulator(SimPy 조립), metrics(이벤트 소싱 지표)
 ├── agents/        # llm, state, monitor, diagnoser, responder, graph,
-│                  #   rag(하이브리드 검색), knowledge/(지식 코퍼스),
-│                  #   rule_supervisor(규칙 기반 결정적 관제)
+│                  #   rag(하이브리드 검색), knowledge/(지식 코퍼스), reflection(인과 평가·가드),
+│                  #   rule_supervisor·guarded_supervisor(결정적 관제)
 ├── viz/           # Matplotlib 애니메이션 + 관제 오버레이
 ├── experiments/   # 비교 실험 러너 (policy/predictive/retrieval/rl)
 └── main.py        # 진입점
@@ -107,3 +107,4 @@ pytest                               # 단위 테스트
 | D8 차량 고장 영향 | 확률적 고장·수리(MTBF 스윕) | MTBF 150서 처리량 -31%·리드 +38%(단조 저하) | `python -m oht_sim.experiments.failure_compare` |
 | D9 고장 인지 관제 | 고장 감지→완화(부하 스윕) | 경부하 리드 -3.1%, 고부하 효과 0(슬랙 의존) | `python -m oht_sim.experiments.failure_supervision_compare` |
 | D10 혼잡 인지 라우팅 | 정적 A* vs 혼잡 가중(DLWC) | 회피 -64%·교착 -84%(유의), 처리량 동률 | `python -m oht_sim.experiments.congestion_compare` |
+| D11 인과 평가·가드 | 단순 효과 vs 인과 + 액션 가드 | 악화 귀속 70%→52% 교정, 가드 개입 22→5 | `python -m oht_sim.experiments.causal_guard_compare` |
