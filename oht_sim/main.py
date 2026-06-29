@@ -20,6 +20,8 @@ def build_config(args: argparse.Namespace) -> SimConfig:
         cfg.random_seed = args.seed
     if args.failure:
         cfg.vehicle_failure = True
+    if args.congestion:
+        cfg.congestion_aware_routing = True
     return cfg
 
 
@@ -32,6 +34,9 @@ def main() -> None:
     parser.add_argument("--gif", action="store_true", help="애니메이션 GIF 저장")
     parser.add_argument(
         "--failure", action="store_true", help="OHT 확률적 고장·수리 활성화 (L1 신뢰성)"
+    )
+    parser.add_argument(
+        "--congestion", action="store_true", help="혼잡 인지 동적 라우팅 활성화 (L2)"
     )
     parser.add_argument(
         "--supervise",
