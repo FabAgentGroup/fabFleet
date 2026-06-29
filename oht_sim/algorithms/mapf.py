@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import heapq
+from typing import Callable
 
 from oht_sim.core.layout import Coord, Grid, manhattan
 
@@ -50,17 +51,20 @@ def plan_route(
     start: Coord,
     goal: Coord,
     blocked: set[Coord] | None = None,
+    cost_fn: Callable[[Coord], float] | None = None,
 ) -> list[Coord]:
     """A* 최단 경로 (정적 장애물 + blocked 셀 회피, 맨해튼 휴리스틱)
 
-    도달 불가 시 [start] 반환.
+    cost_fn이 주어지면 셀 진입 비용 = 1 + cost_fn(cell)로 가중해 혼잡 인지 라우팅을
+    수행한다(cost_fn>=0이면 맨해튼 휴리스틱은 여전히 허용적). 도달 불가 시 [start] 반환.
     """
     if start == goal:
         return [start]
     blocked = blocked or set()
 
-    open_heap: list[tuple[int, int, Coord]] = [(manhattan(start, goal), 0, start)]
-    gbest: dict[Coord, int] = {start: 0}
+    # 타이브레이크는 (f, g, cell)로 원본과 동일하게 유지 (cost_fn 없으면 정적 동작 보존)
+    open_heap: list[tuple[float, float, Coord]] = [(float(manhattan(start, goal)), 0.0, start)]
+    gbest: dict[Coord, float] = {start: 0.0}
     came: dict[Coord, Coord] = {}
 
     while open_heap:
@@ -70,8 +74,9 @@ def plan_route(
         for nxt in grid.neighbors(cell):
             if nxt in blocked and nxt != goal:
                 continue
-            ng = g + 1
-            if ng < gbest.get(nxt, 1 << 30):
+            step = 1.0 + (cost_fn(nxt) if cost_fn is not None else 0.0)
+            ng = g + step
+            if ng < gbest.get(nxt, float("inf")):
                 gbest[nxt] = ng
                 came[nxt] = cell
                 heapq.heappush(open_heap, (ng + manhattan(nxt, goal), ng, nxt))

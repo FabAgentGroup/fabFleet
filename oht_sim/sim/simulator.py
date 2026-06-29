@@ -88,6 +88,17 @@ class Simulator:
 
             self.forecaster = DemandForecaster(config.demand_zones, config.forecast_alpha)
 
+        # 혼잡 인지 동적 라우팅 (선택, §8 D10)
+        self.congestion = None
+        if config.congestion_aware_routing and config.collision_avoidance:
+            from oht_sim.algorithms.congestion import CongestionField
+
+            self.congestion = CongestionField(
+                decay=config.congestion_decay,
+                alpha=config.congestion_alpha,
+                blocked_weight=config.congestion_blocked_weight,
+            )
+
     # ----- 구성 -----
 
     def _spawn_vehicles(self, n: int) -> list[Vehicle]:
@@ -283,7 +294,8 @@ class Simulator:
         틱 예약 셀은 진입하지 않는다. 진전 가능한 셀이 없으면 대기(None).
         """
         blocked = self._stationary_cells(exclude=v)
-        route = plan_route(self.grid, v.pos, v.goal, blocked)
+        cost_fn = self.congestion.penalty if self.congestion is not None else None
+        route = plan_route(self.grid, v.pos, v.goal, blocked, cost_fn=cost_fn)
         preferred = route[1] if len(route) >= 2 else None
 
         candidates: list[Coord] = []
@@ -378,6 +390,23 @@ class Simulator:
                     location=target,
                     payload={"action": "predictive_reposition", "zone": list(hot), "moved": len(moved)},
                 )
+
+    def _congestion_proc(self) -> Generator:
+        """주기적으로 최근 통행·회피를 셀별 집계해 혼잡장을 갱신 (DLWC)"""
+        win = self.config.congestion_window
+        while True:
+            yield self.env.timeout(win)
+            since = self.env.now - win
+            moves: dict[Coord, int] = {}
+            blocks: dict[Coord, int] = {}
+            for e in self.bus.log:
+                if e.time < since or e.location is None:
+                    continue
+                if e.type == EventType.MOVE:
+                    moves[e.location] = moves.get(e.location, 0) + 1
+                elif e.type == EventType.BLOCKED:
+                    blocks[e.location] = blocks.get(e.location, 0) + 1
+            self.congestion.observe(moves, blocks)
 
     def _snapshot(self) -> Generator:
         while True:
@@ -532,6 +561,8 @@ class Simulator:
             self.env.process(self._predictive_dispatch_proc())
         if self.config.vehicle_failure:
             self.env.process(self._failure_proc())
+        if self.congestion is not None:
+            self.env.process(self._congestion_proc())
         self.env.run(until=self.config.sim_duration)
         self.metrics.finalize(self.config.sim_duration)
         return self.metrics

@@ -62,7 +62,7 @@ L1·L2는 GPU·외부 API가 불필요합니다. L3 관제에서만 LLM API 키�
 oht_sim/
 ├── core/          # config, layout, vehicle, job, events(EventBus)
 ├── algorithms/    # router(A*), dispatcher(nearest/least_busy), mapf(예약테이블),
-│                  #   forecast(수요 예측), rl_dispatcher(강화학습)
+│                  #   forecast(수요 예측), rl_dispatcher(강화학습), congestion(혼잡장)
 ├── sim/           # simulator(SimPy 조립), metrics(이벤트 소싱 지표)
 ├── agents/        # llm, state, monitor, diagnoser, responder, graph,
 │                  #   rag(하이브리드 검색), knowledge/(지식 코퍼스),
@@ -84,6 +84,7 @@ python -m oht_sim.main               # 시뮬레이션 실행 + 지표 출력
 python -m oht_sim.main --gif         # 애니메이션 GIF 저장
 python -m oht_sim.main --supervise   # LLM 관제 활성화 (OPENAI_API_KEY 필요)
 python -m oht_sim.main --failure     # OHT 확률적 고장·수리 활성화 (L1 신뢰성)
+python -m oht_sim.main --congestion  # 혼잡 인지 동적 라우팅 활성화 (L2)
 pytest                               # 단위 테스트
 ```
 
@@ -105,3 +106,4 @@ pytest                               # 단위 테스트
 | D7 유의성 검정 | 30시드 쌍체 + 부트스트랩 CI·순열검정 | 배차 차이 모두 유의하지 않음(D4 -10%는 시드 노이즈 내) | `python -m oht_sim.experiments.significance_compare` |
 | D8 차량 고장 영향 | 확률적 고장·수리(MTBF 스윕) | MTBF 150서 처리량 -31%·리드 +38%(단조 저하) | `python -m oht_sim.experiments.failure_compare` |
 | D9 고장 인지 관제 | 고장 감지→완화(부하 스윕) | 경부하 리드 -3.1%, 고부하 효과 0(슬랙 의존) | `python -m oht_sim.experiments.failure_supervision_compare` |
+| D10 혼잡 인지 라우팅 | 정적 A* vs 혼잡 가중(DLWC) | 회피 -64%·교착 -84%(유의), 처리량 동률 | `python -m oht_sim.experiments.congestion_compare` |

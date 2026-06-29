@@ -33,6 +33,13 @@ class SimConfig:
     mapf_window: int = 8  # 윈도우 협력 A* 계획 지평(틱)
     deadlock_threshold: int = 5  # 연속 대기 횟수 초과 시 교착으로 판정
 
+    # 혼잡 인지 동적 라우팅 (L2, DLWC 계열, §8 D10)
+    congestion_aware_routing: bool = False  # True면 혼잡 가중을 라우팅 비용에 반영
+    congestion_window: float = 10.0  # 혼잡장 갱신 주기·집계 윈도
+    congestion_decay: float = 0.6  # 혼잡 EMA 감쇠
+    congestion_alpha: float = 3.0  # 혼잡 페널티 배율
+    congestion_blocked_weight: float = 3.0  # 회피 대기 1건의 통행 대비 가중
+
     # 시간 변동 핫스팟 수요 (§8 예측 배차용 시나리오)
     demand_hotspot: bool = False  # True면 출발 구역이 시간에 따라 쏠림
     demand_zones: int = 2  # 수요 구역 분할(축당)
