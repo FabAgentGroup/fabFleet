@@ -47,10 +47,15 @@ class ActionRecord:
 
 
 class ActionExecutor:
-    """LLM 결정을 화이트리스트로 검증해 시뮬레이터에 안전하게 적용"""
+    """LLM 결정을 화이트리스트·인과 가드로 검증해 시뮬레이터에 안전하게 적용
 
-    def __init__(self, sim: "Simulator"):
+    guard가 주어지면 화이트리스트 통과 후에도 인과적으로 해롭다고 학습된 액션을 거부한다
+    (neurosymbolic: 학습된 통계가 LLM 결정을 감싼다).
+    """
+
+    def __init__(self, sim: "Simulator", guard=None):
         self.sim = sim
+        self.guard = guard  # Callable[[str], bool] | None - False면 액션 거부
         self.log: list[ActionRecord] = []
 
     def execute(self, decision: dict) -> ActionRecord:
@@ -60,6 +65,10 @@ class ActionExecutor:
 
         if action not in WHITELIST:
             rec.error = f"비화이트리스트 액션 거부: {action}"
+            self.log.append(rec)
+            return rec
+        if action != "none" and self.guard is not None and not self.guard(action):
+            rec.error = f"인과 가드 거부: {action}"
             self.log.append(rec)
             return rec
         try:

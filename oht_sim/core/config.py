@@ -88,3 +88,9 @@ class AgentConfig:
     effect_w_queue: float = 1.0  # 효과 점수 - 대기 큐 감소 가중
     effect_w_lead: float = 0.1  # 효과 점수 - 리드타임 감소 가중
     effect_w_congestion: float = 1.0  # 효과 점수 - 대상 구역 혼잡 감소 가중
+
+    # 인과 평가·액션 가드 (L3 neurosymbolic, §8 D11)
+    causal_w_congestion: float = 1.0  # 인과 점수 - 대상 구역 혼잡 감소 가중
+    guard_explore_n: int = 3  # 액션 유형별 가드 발동 전 탐색 횟수
+    guard_threshold: float = 0.0  # 평균 인과 점수가 이 값 미만이면 해당 액션 거부
+    action_guard: bool = False  # True면 LLM 관제도 인과 가드로 해로운 액션 거부
