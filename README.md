@@ -110,3 +110,4 @@ pytest                               # 단위 테스트
 | D10 혼잡 인지 라우팅 | 정적 A* vs 혼잡 가중(DLWC) | 회피 -64%·교착 -84%(유의), 처리량 동률 | `python -m oht_sim.experiments.congestion_compare` |
 | D11 인과 평가·가드 | 단순 효과 vs 인과 + 액션 가드 | 악화 귀속 70%→52% 교정, 가드 개입 22→5 | `python -m oht_sim.experiments.causal_guard_compare` |
 | D12 PIBT 이동 계획 | 임시 플래너 vs PIBT(차량 수 스윕) | 처리량 +10~16%(유의)·교착 -96~100%, 밀집서 이득↑ | `python -m oht_sim.experiments.pibt_compare` |
+| D13 RL 보상 재설계 | 대기/리드/혼잡 보상 vs nearest | 어느 보상도 nearest 유의 우위 없음(병목은 보상 아닌 배차 레버리지) | `python -m oht_sim.experiments.rl_reward_compare` |

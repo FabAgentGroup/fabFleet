@@ -78,3 +78,25 @@ def test_failure_supervision_arms_run():
     assert base["mitigations"] == 0.0  # 무관제는 개입 없음
     assert sup["mitigations"] >= 1.0  # 관제는 고장 저하에 개입
     assert base["throughput"] >= 0 and sup["avg_lead"] >= 0
+
+
+# ----- D13 RL 보상 재설계 하니스 -----
+
+def test_rl_reward_train_changes_policy():
+    from oht_sim.algorithms.rl_dispatcher import MLPPolicyDispatcher
+    from oht_sim.experiments.rl_reward_compare import REWARDS, train
+
+    rl = MLPPolicyDispatcher(20, 20, hidden=8, lr=0.02, temperature=0.5, seed=1)
+    before = rl.W2.copy()
+    train(rl, REWARDS["lead"], episodes=4)  # 리드 보상으로 학습
+    import numpy as np
+    assert not np.array_equal(rl.W2, before)  # 보상 신호로 정책 변화
+
+
+def test_rl_reward_run_has_metrics():
+    from oht_sim.algorithms.dispatcher import NearestDispatcher
+    from oht_sim.experiments.rl_reward_compare import _run
+
+    r = _run(NearestDispatcher(), seed=1)
+    assert {"avg_wait", "avg_lead", "throughput", "blocked_rate"} <= set(r)
+    assert r["blocked_rate"] >= 0
