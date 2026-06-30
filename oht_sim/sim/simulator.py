@@ -9,6 +9,7 @@ import simpy
 
 from oht_sim.algorithms.dispatcher import Dispatcher, NearestDispatcher
 from oht_sim.algorithms.mapf import ReservationTable, plan_route
+from oht_sim.algorithms.pibt import PIBTPlanner
 from oht_sim.algorithms.router import AStarRouter, ManhattanRouter, Router
 from oht_sim.core.config import SimConfig
 from oht_sim.core.events import Event, EventBus, EventType
@@ -233,9 +234,14 @@ class Simulator:
     # ----- 틱 동기식 mover (우선순위 계획) -----
 
     def _mover(self) -> Generator:
+        advance = (
+            self._advance_tick_pibt
+            if self.config.pibt_planning
+            else self._advance_tick
+        )
         while True:
             yield self.env.timeout(self.config.move_time_per_cell)
-            self._advance_tick()
+            advance()
 
     def _stationary_cells(self, exclude: Vehicle) -> set[Coord]:
         return {u.pos for u in self.vehicles if u is not exclude and not u.moving}
@@ -277,6 +283,59 @@ class Simulator:
                 v.pos = nxt
                 self._stuck[v.id] = 0
                 self._publish(EventType.MOVE, vehicle_id=v.id, location=nxt)
+                if v.pos == v.goal:
+                    v.moving = False
+                    v.goal = None
+                    v.path = []
+                    ev = self._arrival.pop(v.id, None)
+                    if ev is not None and not ev.triggered:
+                        ev.succeed()
+
+    def _advance_tick_pibt(self) -> None:
+        """PIBT로 한 틱 이동 계획 (우선순위 상속 + 백트래킹, 충돌·스왑 차단)
+
+        이동 차량은 목표를 향하고, 유휴 차량은 밀림 가능한 장애물(goal=현위치)로 둔다.
+        적재·하역·고장 차량은 밀 수 없는 고정 장애물이다. PIBT가 교착을 회복하므로
+        별도 회복 로직을 호출하지 않는다.
+        """
+        movers = [v for v in self.vehicles if v.moving]
+        if not movers:
+            return
+
+        positions = {v.id: v.pos for v in self.vehicles}
+        goals: dict[int, Coord] = {}
+        movable: set[int] = set()
+        for v in self.vehicles:
+            if v.moving:
+                goals[v.id] = v.goal
+                movable.add(v.id)
+            elif v.is_idle:
+                goals[v.id] = v.pos  # 유휴 차량은 밀림 가능
+                movable.add(v.id)
+
+        order = [v.id for v in sorted(movers, key=lambda v: (-self._stuck[v.id], v.id))]
+        planner = PIBTPlanner(self.grid, positions, goals, movable)
+        nxt = planner.solve(order)
+
+        by_id = {v.id: v for v in self.vehicles}
+        for vid, npos in nxt.items():
+            v = by_id[vid]
+            if npos == v.pos:
+                if v.moving:
+                    self._stuck[v.id] += 1
+                    self._publish(EventType.BLOCKED, vehicle_id=v.id, location=v.pos)
+                    if self._stuck[v.id] == self.config.deadlock_threshold:
+                        self._publish(
+                            EventType.DEADLOCK_DETECTED,
+                            vehicle_id=v.id,
+                            location=v.pos,
+                            payload={"goal": v.goal},
+                        )
+                continue
+            v.pos = npos
+            self._publish(EventType.MOVE, vehicle_id=v.id, location=npos)
+            if v.moving:
+                self._stuck[v.id] = 0
                 if v.pos == v.goal:
                     v.moving = False
                     v.goal = None

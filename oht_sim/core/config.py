@@ -32,6 +32,7 @@ class SimConfig:
     collision_avoidance: bool = True  # False면 L1 동작(충돌 무시)으로 비교
     mapf_window: int = 8  # 윈도우 협력 A* 계획 지평(틱)
     deadlock_threshold: int = 5  # 연속 대기 횟수 초과 시 교착으로 판정
+    pibt_planning: bool = False  # True면 임시 플래너 대신 PIBT로 이동 계획 (§8 D12)
 
     # 혼잡 인지 동적 라우팅 (L2, DLWC 계열, §8 D10)
     congestion_aware_routing: bool = False  # True면 혼잡 가중을 라우팅 비용에 반영
