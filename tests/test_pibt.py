@@ -88,3 +88,23 @@ def test_pibt_reduces_deadlock_vs_windowed():
 
 def test_pibt_off_by_default():
     assert SimConfig().pibt_planning is False
+
+
+# ----- 혼잡 결합 (D15) -----
+
+def test_pibt_cost_fn_breaks_ties_toward_low_congestion():
+    # (1,0)·(0,1) 둘 다 목표 (1,1)에 같은 거리. (1,0)이 혼잡하면 (0,1) 선택
+    g = Grid(2, 2)
+    pos = {0: (0, 0)}
+    goal = {0: (1, 1)}
+    cost = lambda c: 9.0 if c == (1, 0) else 0.0
+    nxt = PIBTPlanner(g, pos, goal, {0}, cost_fn=cost).solve([0])
+    assert nxt[0] == (0, 1)  # 혼잡한 (1,0) 대신 동거리 (0,1)
+
+
+def test_pibt_with_congestion_runs():
+    sim = Simulator(SimConfig(num_vehicles=14, job_arrival_rate=0.5, sim_duration=300,
+                              random_seed=3, pibt_planning=True, congestion_aware_routing=True))
+    m = sim.run()
+    assert sim.congestion is not None  # 혼잡장 구성됨
+    assert m.summary()["completed_jobs"] > 0

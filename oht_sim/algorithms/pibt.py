@@ -13,11 +13,17 @@
 
 from __future__ import annotations
 
+from typing import Callable
+
 from oht_sim.core.layout import Coord, Grid, manhattan
 
 
 class PIBTPlanner:
-    """단일 틱 PIBT 플래너 (충돌 없는 다음 위치 산출)"""
+    """단일 틱 PIBT 플래너 (충돌 없는 다음 위치 산출)
+
+    cost_fn이 주어지면 같은 목표 거리의 후보 중 혼잡이 낮은 셀을 우선해(동점 기준),
+    PIBT의 진전 보장을 유지하면서 트래픽을 분산한다(D10 혼잡 라우팅과 결합).
+    """
 
     def __init__(
         self,
@@ -25,11 +31,13 @@ class PIBTPlanner:
         positions: dict[int, Coord],
         goals: dict[int, Coord],
         movable: set[int],
+        cost_fn: Callable[[Coord], float] | None = None,
     ):
         self.grid = grid
         self.pos = positions  # 모든 차량 vid -> 현재 셀
         self.goal = goals  # 이동·밀림 가능 차량 vid -> 목표(유휴는 현재 셀)
         self.movable = movable  # 밀거나 이동시킬 수 있는 vid 집합
+        self.cost_fn = cost_fn  # 혼잡 페널티(동점 기준) | None
         self.occupied: dict[Coord, int] = {c: vid for vid, c in positions.items()}
         self.next: dict[int, Coord] = {}  # vid -> 확정 다음 셀
         self.reserved: dict[Coord, int] = {}  # 다음 셀 -> 선점 vid
@@ -45,7 +53,11 @@ class PIBTPlanner:
         p = self.pos[vid]
         g = self.goal.get(vid, p)
         cands = self.grid.neighbors(p) + [p]  # 이웃 + 제자리
-        cands.sort(key=lambda c: (manhattan(c, g), c))  # 목표에 가까운 셀 우선
+        if self.cost_fn is None:
+            cands.sort(key=lambda c: (manhattan(c, g), c))  # 목표에 가까운 셀 우선
+        else:
+            # 1차 목표 거리, 2차 혼잡(낮은 셀 우선) - 진전 보장 유지하며 트래픽 분산
+            cands.sort(key=lambda c: (manhattan(c, g), self.cost_fn(c), c))
         return cands
 
     def _pibt(self, vid: int, forbidden: Coord | None) -> bool:

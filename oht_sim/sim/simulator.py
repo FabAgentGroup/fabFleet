@@ -314,7 +314,8 @@ class Simulator:
                 movable.add(v.id)
 
         order = [v.id for v in sorted(movers, key=lambda v: (-self._stuck[v.id], v.id))]
-        planner = PIBTPlanner(self.grid, positions, goals, movable)
+        cost_fn = self.congestion.penalty if self.congestion is not None else None
+        planner = PIBTPlanner(self.grid, positions, goals, movable, cost_fn=cost_fn)
         nxt = planner.solve(order)
 
         by_id = {v.id: v for v in self.vehicles}
