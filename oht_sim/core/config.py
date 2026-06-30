@@ -13,6 +13,8 @@ class SimConfig:
     grid_width: int = 20
     grid_height: int = 20
     num_stations: int = 10
+    topology: str = "grid"  # "grid"(자유 격자) | "rail"(방향성 레일, OHT 모노레일)
+    rail_bays: int = 4  # rail 토폴로지의 인트라베이 베이 수
 
     # 차량·작업
     num_vehicles: int = 5

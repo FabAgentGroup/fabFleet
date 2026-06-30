@@ -60,7 +60,7 @@ L1·L2는 GPU·외부 API가 불필요합니다. L3 관제에서만 LLM API 키�
 
 ```
 oht_sim/
-├── core/          # config, layout, vehicle, job, events(EventBus)
+├── core/          # config, layout(격자·레일그래프), vehicle, job, events(EventBus)
 ├── algorithms/    # router(A*), dispatcher(nearest/least_busy), mapf(예약테이블),
 │                  #   forecast(수요 예측), rl_dispatcher(강화학습), congestion(혼잡장), pibt(PIBT 플래너)
 ├── sim/           # simulator(SimPy 조립), metrics(이벤트 소싱 지표)
@@ -86,6 +86,7 @@ python -m oht_sim.main --supervise   # LLM 관제 활성화 (OPENAI_API_KEY 필�
 python -m oht_sim.main --failure     # OHT 확률적 고장·수리 활성화 (L1 신뢰성)
 python -m oht_sim.main --congestion  # 혼잡 인지 동적 라우팅 활성화 (L2)
 python -m oht_sim.main --pibt        # PIBT 이동 계획 활성화 (L2)
+python -m oht_sim.main --rail        # 방향성 레일 토폴로지 (OHT 모노레일)
 pytest                               # 단위 테스트
 ```
 
@@ -111,5 +112,6 @@ pytest                               # 단위 테스트
 | D11 인과 평가·가드 | 단순 효과 vs 인과 + 액션 가드 | 악화 귀속 70%→52% 교정, 가드 개입 22→5 | `python -m oht_sim.experiments.causal_guard_compare` |
 | D12 PIBT 이동 계획 | 임시 플래너 vs PIBT(차량 수 스윕) | 처리량 +10~16%(유의)·교착 -96~100%, 밀집서 이득↑ | `python -m oht_sim.experiments.pibt_compare` |
 | D15 L2 결합(혼잡+PIBT) | 혼잡·PIBT 스택 효과 | PIBT 위 혼잡 라우팅 추가 이득 없음(대체재) | `python -m oht_sim.experiments.l2_stack_compare` |
+| D16 토폴로지(격자 vs 레일) | 자유 격자 vs OHT 단방향 레일 | 레일선 리드 4~6배·처리량 ~0.12 포화(격자가 과소평가) | `python -m oht_sim.experiments.topology_compare` |
 | D13 RL 보상 재설계 | 대기/리드/혼잡 보상 vs nearest | 어느 보상도 nearest 유의 우위 없음(병목은 보상 아닌 배차 레버리지) | `python -m oht_sim.experiments.rl_reward_compare` |
 | D14 시맨틱(LSA) 검색 | 어휘 vs LSA(절단 SVD) | 8문서 코퍼스선 LSA도 동률(임베딩 필요 확정) | `python -m oht_sim.experiments.retrieval_semantic_compare` |

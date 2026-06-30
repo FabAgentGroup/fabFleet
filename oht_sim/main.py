@@ -24,6 +24,8 @@ def build_config(args: argparse.Namespace) -> SimConfig:
         cfg.congestion_aware_routing = True
     if args.pibt:
         cfg.pibt_planning = True
+    if args.rail:
+        cfg.topology = "rail"
     return cfg
 
 
@@ -42,6 +44,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--pibt", action="store_true", help="PIBT 이동 계획 활성화 (L2, 임시 플래너 대체)"
+    )
+    parser.add_argument(
+        "--rail", action="store_true", help="방향성 레일 토폴로지 활성화 (OHT 모노레일)"
     )
     parser.add_argument(
         "--supervise",

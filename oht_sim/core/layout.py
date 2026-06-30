@@ -38,6 +38,83 @@ class Grid:
         return [n for n in cands if self.passable(n)]
 
 
+class RailGraph:
+    """방향성 레일 그래프 (OHT 모노레일 추상화, Grid 호환 인터페이스)
+
+    노드는 (x,y) 셀, 엣지는 허용된 단방향 이동이다. 자유 격자와 달리 차량은 레일 위
+    허용 방향으로만 이동한다(인터베이 외곽 루프 + 인트라베이 베이). passable·neighbors·
+    blocked·width·height를 Grid와 동일하게 제공해 라우터·MAPF·PIBT가 그대로 동작한다.
+    """
+
+    def __init__(self, width: int, height: int, adj: dict[Coord, list[Coord]],
+                 blocked: set[Coord] | None = None):
+        self.width = width
+        self.height = height
+        self._adj = adj  # node -> 허용 단방향 이웃
+        self.track: set[Coord] = set(adj.keys())
+        self.blocked: set[Coord] = set(blocked or set())
+
+    def in_bounds(self, c: Coord) -> bool:
+        x, y = c
+        return 0 <= x < self.width and 0 <= y < self.height
+
+    def passable(self, c: Coord) -> bool:
+        return c in self.track and c not in self.blocked
+
+    def neighbors(self, c: Coord) -> list[Coord]:
+        """허용 단방향 이웃 (차단 셀 제외)"""
+        return [n for n in self._adj.get(c, ()) if n not in self.blocked]
+
+
+def build_rail_graph(
+    width: int, height: int, num_bays: int = 4
+) -> tuple[RailGraph, list[Coord]]:
+    """인터베이 외곽 루프(시계방향 단방향) + 인트라베이 베이(방향 교대) 레일 생성
+
+    외곽은 강연결 사이클, 베이는 좌우 루프를 잇는 단일 차선이다. Station 후보(베이 내부
+    셀) 목록을 함께 반환한다. 그래프는 강연결이라 모든 Station이 상호 도달 가능하다.
+    """
+    adj: dict[Coord, list[Coord]] = {}
+
+    def add(a: Coord, b: Coord) -> None:
+        adj.setdefault(a, [])
+        if b not in adj[a]:
+            adj[a].append(b)
+        adj.setdefault(b, [])
+
+    W, H = width, height
+    # 외곽 인터베이 루프 (시계방향): 상→ 우↓ 하← 좌↑
+    for x in range(W - 1):
+        add((x, H - 1), (x + 1, H - 1))
+    for y in range(H - 1, 0, -1):
+        add((W - 1, y), (W - 1, y - 1))
+    for x in range(W - 1, 0, -1):
+        add((x, 0), (x - 1, 0))
+    for y in range(H - 1):
+        add((0, y), (0, y + 1))
+
+    # 인트라베이 베이 (내부 행, 좌우 방향 교대)
+    bay_rows: list[int] = []
+    if num_bays > 0 and H > 2:
+        step = (H - 1) / (num_bays + 1)
+        for i in range(1, num_bays + 1):
+            b = min(H - 2, max(1, int(round(i * step))))
+            if b not in bay_rows:
+                bay_rows.append(b)
+
+    stations: list[Coord] = []
+    for idx, b in enumerate(bay_rows):
+        if idx % 2 == 0:  # 우향 베이 (좌 진입 -> 우 진출)
+            for x in range(W - 1):
+                add((x, b), (x + 1, b))
+        else:  # 좌향 베이 (우 진입 -> 좌 진출)
+            for x in range(W - 1, 0, -1):
+                add((x, b), (x - 1, b))
+        stations.extend((x, b) for x in range(1, W - 1))
+
+    return RailGraph(W, H, adj), stations
+
+
 def manhattan(a: Coord, b: Coord) -> int:
     """맨해튼 거리"""
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
