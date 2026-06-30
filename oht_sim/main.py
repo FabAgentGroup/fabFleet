@@ -22,6 +22,8 @@ def build_config(args: argparse.Namespace) -> SimConfig:
         cfg.vehicle_failure = True
     if args.congestion:
         cfg.congestion_aware_routing = True
+    if args.pibt:
+        cfg.pibt_planning = True
     return cfg
 
 
@@ -37,6 +39,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--congestion", action="store_true", help="혼잡 인지 동적 라우팅 활성화 (L2)"
+    )
+    parser.add_argument(
+        "--pibt", action="store_true", help="PIBT 이동 계획 활성화 (L2, 임시 플래너 대체)"
     )
     parser.add_argument(
         "--supervise",

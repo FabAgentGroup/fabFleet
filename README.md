@@ -62,7 +62,7 @@ L1·L2는 GPU·외부 API가 불필요합니다. L3 관제에서만 LLM API 키�
 oht_sim/
 ├── core/          # config, layout, vehicle, job, events(EventBus)
 ├── algorithms/    # router(A*), dispatcher(nearest/least_busy), mapf(예약테이블),
-│                  #   forecast(수요 예측), rl_dispatcher(강화학습), congestion(혼잡장)
+│                  #   forecast(수요 예측), rl_dispatcher(강화학습), congestion(혼잡장), pibt(PIBT 플래너)
 ├── sim/           # simulator(SimPy 조립), metrics(이벤트 소싱 지표)
 ├── agents/        # llm, state, monitor, diagnoser, responder, graph,
 │                  #   rag(하이브리드 검색), knowledge/(지식 코퍼스), reflection(인과 평가·가드),
@@ -85,6 +85,7 @@ python -m oht_sim.main --gif         # 애니메이션 GIF 저장
 python -m oht_sim.main --supervise   # LLM 관제 활성화 (OPENAI_API_KEY 필요)
 python -m oht_sim.main --failure     # OHT 확률적 고장·수리 활성화 (L1 신뢰성)
 python -m oht_sim.main --congestion  # 혼잡 인지 동적 라우팅 활성화 (L2)
+python -m oht_sim.main --pibt        # PIBT 이동 계획 활성화 (L2)
 pytest                               # 단위 테스트
 ```
 
@@ -108,3 +109,4 @@ pytest                               # 단위 테스트
 | D9 고장 인지 관제 | 고장 감지→완화(부하 스윕) | 경부하 리드 -3.1%, 고부하 효과 0(슬랙 의존) | `python -m oht_sim.experiments.failure_supervision_compare` |
 | D10 혼잡 인지 라우팅 | 정적 A* vs 혼잡 가중(DLWC) | 회피 -64%·교착 -84%(유의), 처리량 동률 | `python -m oht_sim.experiments.congestion_compare` |
 | D11 인과 평가·가드 | 단순 효과 vs 인과 + 액션 가드 | 악화 귀속 70%→52% 교정, 가드 개입 22→5 | `python -m oht_sim.experiments.causal_guard_compare` |
+| D12 PIBT 이동 계획 | 임시 플래너 vs PIBT(차량 수 스윕) | 처리량 +10~16%(유의)·교착 -96~100%, 밀집서 이득↑ | `python -m oht_sim.experiments.pibt_compare` |
