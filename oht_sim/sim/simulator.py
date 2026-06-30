@@ -17,6 +17,7 @@ from oht_sim.core.job import Job, JobGenerator
 from oht_sim.core.layout import (
     Coord,
     Grid,
+    build_rail_graph,
     build_stations,
     manhattan,
     zone_center,
@@ -45,12 +46,22 @@ class Simulator:
         self.env = simpy.Environment()
         self.bus = EventBus()
 
-        self.grid = Grid(
-            config.grid_width, config.grid_height, set(config.blocked_cells)
-        )
-        self.stations = build_stations(
-            config.num_stations, self.grid, self.rng, config.station_coords
-        )
+        if config.topology == "rail":
+            self.grid, rail_cells = build_rail_graph(
+                config.grid_width, config.grid_height, config.rail_bays
+            )
+            self.grid.blocked.update(config.blocked_cells)
+            coords = config.station_coords or self.rng.sample(
+                rail_cells, k=min(config.num_stations, len(rail_cells))
+            )
+            self.stations = build_stations(config.num_stations, self.grid, self.rng, coords)
+        else:
+            self.grid = Grid(
+                config.grid_width, config.grid_height, set(config.blocked_cells)
+            )
+            self.stations = build_stations(
+                config.num_stations, self.grid, self.rng, config.station_coords
+            )
         self.vehicles = self._spawn_vehicles(config.num_vehicles)
         self.initial_positions = {v.id: v.pos for v in self.vehicles}
         self.pending: list[Job] = []
